@@ -1,0 +1,13 @@
+global:
+  # Wie oft Prometheus die Ziele (Targets) abfragt
+  scrape_interval: 15s
+
+# Hier werden die Scrape-Ziele definiert
+scrape_configs:
+  # Ein "Job" für unsere Microservices
+  - job_name: 'microservices'
+    # Welchen Endpoint soll Prometheus abfragen?
+    metrics_path: '/actuator/prometheus'
+    # Statische Liste von Zielen
+    static_configs:
+      - targets: ['microservice1:8081', 'microservice2:8082']
