@@ -12,31 +12,34 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
 
-  # Microservices
+  # Microservice 1
   microservice1:
     build:
       context: ./microservice1
     ports:
       - "8081:8081"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
       - LOGSTASH_HOST=logstash
+      - SPRING_PROFILES_ACTIVE=dev
+      - JAEGER_AGENT_HOST=jaeger-all-in-one # Ziel ist der neue All-in-One-Service
     depends_on:
       - db
-      - jaeger-agent
+      - jaeger-all-in-one # Abhängig vom neuen Jaeger-Service
       - logstash
 
+  # Microservice 2
   microservice2:
     build:
       context: ./microservice2
     ports:
       - "8082:8082"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
       - LOGSTASH_HOST=logstash
+      - SPRING_PROFILES_ACTIVE=dev
+      - JAEGER_AGENT_HOST=jaeger-all-in-one # Ziel ist der neue All-in-One-Service
     depends_on:
       - db
-      - jaeger-agent
+      - jaeger-all-in-one # Abhängig vom neuen Jaeger-Service
       - logstash
 
   # Frontend
@@ -67,10 +70,27 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
-      - jaeger-query
+      - jaeger-all-in-one # Abhängig vom neuen Jaeger-Service
       - elasticsearch
 
-  # Jaeger Dienste
+  # Jaeger V2 All-in-One Dienst (ersetzt Agent, Collector, Query)
+  jaeger-all-in-one:
+    image: jaegertracing/jaeger:2.6.0 # Eine stabile V2-Version
+    container_name: jaeger-all-in-one
+    ports:
+      - "16686:16686" # Web UI
+      - "14250:14250" # gRPC Collector
+      - "6831:6831/udp" # Agent Thrift UDP
+    environment:
+      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+      - JAEGER_DISABLED=false
+      - STORAGE=cassandra # V2-Konfiguration für Cassandra
+      - CASSANDRA_SERVERS=jaeger-cassandra # Verweist auf den Cassandra-Dienst
+    depends_on:
+      jaeger-cassandra:
+        condition: service_healthy # Wartet, bis Cassandra bereit ist
+
+  # Cassandra
   jaeger-cassandra:
     image: cassandra:3.11
     ports:
@@ -81,34 +101,7 @@ services:
       test: ["CMD-SHELL", "[ $(nodetool status | grep -c \"UN \") -gt 0 ]"]
       interval: 10s
       timeout: 10s
-      retries: 5 
-
-  jaeger-agent:
-    image: jaegertracing/jaeger-agent
-    ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-    depends_on:
-      - jaeger-collector
-
-  jaeger-collector:
-    image: jaegertracing/jaeger-collector
-    ports:
-      - "14267:14267"
-      - "14268:14268"
-    environment:
-      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
-    command: ["--cassandra.servers=jaeger-cassandra"]
-    depends_on:
-      - jaeger-cassandra
-
-  jaeger-query:
-    image: jaegertracing/jaeger-query
-    ports:
-      - "16686:16686"
-    command: ["--cassandra.servers=jaeger-cassandra"]
-    depends_on:
-      - jaeger-cassandra
+      retries: 5
 
   # ELK Stack
   elasticsearch:
@@ -118,7 +111,7 @@ services:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=changeme
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Heap-Größe begrenzen
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
 
@@ -144,7 +137,7 @@ services:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     depends_on:
       - elasticsearch
-      
+
 volumes:
   db-data:
   jaeger-cassandra-data:
