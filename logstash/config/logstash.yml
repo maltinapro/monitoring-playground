@@ -1,0 +1,10 @@
+# `logstash/config/logstash.yml`
+
+# Setze den Hostnamen für den Logstash-Container
+http.host: "0.0.0.0"
+
+# Setze den Port für die HTTP-API (wird selten benutzt, aber ist gut zu wissen)
+http.port: 9600-9700
+
+# Lade die Pipeline-Konfiguration aus dem angegebenen Verzeichnis
+path.config: /usr/share/logstash/pipeline
