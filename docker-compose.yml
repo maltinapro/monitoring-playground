@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Datenbank
   db:
@@ -72,12 +70,26 @@ services:
       - jaeger-query
       - elasticsearch
 
+  # Jaeger Dienste
+  jaeger-cassandra:
+    image: cassandra:3.11
+    ports:
+      - "9042:9042"
+    volumes:
+      - jaeger-cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "[ $(nodetool status | grep -c \"UN \") -gt 0 ]"]
+      interval: 10s
+      timeout: 10s
+      retries: 5 
+
   jaeger-agent:
     image: jaegertracing/jaeger-agent
     ports:
       - "5775:5775/udp"
       - "6831:6831/udp"
-    command: ["--collector.host-port=jaeger-collector:14267"]
+    depends_on:
+      - jaeger-collector
 
   jaeger-collector:
     image: jaegertracing/jaeger-collector
@@ -86,7 +98,7 @@ services:
       - "14268:14268"
     environment:
       - COLLECTOR_ZIPKIN_HTTP_PORT=9411
-    command: ["--cassandra.servers=jaeger-cassandra:9042"]
+    command: ["--cassandra.servers=jaeger-cassandra"]
     depends_on:
       - jaeger-cassandra
 
@@ -94,8 +106,9 @@ services:
     image: jaegertracing/jaeger-query
     ports:
       - "16686:16686"
+    command: ["--cassandra.servers=jaeger-cassandra"]
     depends_on:
-      - jaeger-collector
+      - jaeger-cassandra
 
   # ELK Stack
   elasticsearch:
@@ -105,6 +118,7 @@ services:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=changeme
       - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Heap-Größe begrenzen
     ports:
       - "9200:9200"
 
@@ -112,7 +126,7 @@ services:
     image: docker.elastic.co/logstash/logstash:7.17.0
     container_name: logstash
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
       - ./logstash/pipeline:/usr/share/logstash/pipeline
@@ -133,3 +147,4 @@ services:
       
 volumes:
   db-data:
+  jaeger-cassandra-data:
