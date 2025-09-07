@@ -1,15 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
+    <springProperty scope="context" name="service_name" source="spring.application.name" />
     <property name="logstashHost" value="${LOGSTASH_HOST:-logstash}"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
 
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
         <destination>${logstashHost}:5000</destination>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" >
+            <!-- ist nicht notwendig
+                 <customFields>{"service_name":"${bla}"}</customFields>   
+                 die Definition oben <springProperty scope="context" name="service_name" source="spring.application.name" /> reicht
+            -->
+        </encoder>
     </appender>
 
     <root level="info">
         <appender-ref ref="LOGSTASH" />
+        <appender-ref ref="CONSOLE" />
     </root>
 
 </configuration>

@@ -12,16 +12,16 @@ public class HelloController {
 
     private static final Logger logger = LoggerFactory.getLogger(HelloController.class);
 
-    @Value("${service.name}")
-    private String serviceName;
+    @Value("${spring.application.name}")
+    private String applicationName;
 
     @Value("${next.service.url:}")
     private String nextServiceUrl;
 
     @GetMapping("/hello")
     public String hello() {
-        logger.info("Handling request in {}", serviceName);
-        String message = "Hello from " + serviceName;
+        logger.info("Handling request in {}", applicationName);
+        String message = "Hello from " + applicationName;
 
         if (!nextServiceUrl.isEmpty()) {
             logger.info("Calling next service at {}", nextServiceUrl);

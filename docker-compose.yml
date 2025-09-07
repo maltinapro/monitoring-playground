@@ -21,10 +21,9 @@ services:
     environment:
       - LOGSTASH_HOST=logstash
       - SPRING_PROFILES_ACTIVE=dev
-      - JAEGER_AGENT_HOST=jaeger-all-in-one # Ziel ist der neue All-in-One-Service
     depends_on:
       - db
-      - jaeger-all-in-one # Abhängig vom neuen Jaeger-Service
+      - jaeger-all-in-one
       - logstash
 
   # Microservice 2
@@ -36,10 +35,9 @@ services:
     environment:
       - LOGSTASH_HOST=logstash
       - SPRING_PROFILES_ACTIVE=dev
-      - JAEGER_AGENT_HOST=jaeger-all-in-one # Ziel ist der neue All-in-One-Service
     depends_on:
       - db
-      - jaeger-all-in-one # Abhängig vom neuen Jaeger-Service
+      - jaeger-all-in-one
       - logstash
 
   # Frontend
@@ -70,38 +68,18 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
-      - jaeger-all-in-one # Abhängig vom neuen Jaeger-Service
+      - jaeger-all-in-one
       - elasticsearch
 
-  # Jaeger V2 All-in-One Dienst (ersetzt Agent, Collector, Query)
+  # Jaeger All-in-One-Dienst (In-Memory-Speicher)
   jaeger-all-in-one:
-    image: jaegertracing/jaeger:2.6.0 # Eine stabile V2-Version
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.10.0
     container_name: jaeger-all-in-one
     ports:
       - "16686:16686" # Web UI
-      - "14250:14250" # gRPC Collector
+      - "4317:4317" # OTLP gRPC - Standard für OpenTelemetry
+      - "14250:14250" # Klassischer gRPC Collector Port
       - "6831:6831/udp" # Agent Thrift UDP
-    environment:
-      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
-      - JAEGER_DISABLED=false
-      - STORAGE=cassandra # V2-Konfiguration für Cassandra
-      - CASSANDRA_SERVERS=jaeger-cassandra # Verweist auf den Cassandra-Dienst
-    depends_on:
-      jaeger-cassandra:
-        condition: service_healthy # Wartet, bis Cassandra bereit ist
-
-  # Cassandra
-  jaeger-cassandra:
-    image: cassandra:3.11
-    ports:
-      - "9042:9042"
-    volumes:
-      - jaeger-cassandra-data:/var/lib/cassandra
-    healthcheck:
-      test: ["CMD-SHELL", "[ $(nodetool status | grep -c \"UN \") -gt 0 ]"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
 
   # ELK Stack
   elasticsearch:
@@ -140,4 +118,3 @@ services:
 
 volumes:
   db-data:
-  jaeger-cassandra-data:
